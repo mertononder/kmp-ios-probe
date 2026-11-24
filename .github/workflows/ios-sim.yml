@@ -1,0 +1,68 @@
+name: iOS simulator build
+
+# Public repository: macOS minutes are free, so every push runs the whole recipe.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      screens:
+        description: "Demo screens to capture (space separated); empty = all"
+        required: false
+        default: ""
+
+concurrency:
+  group: ios-sim
+  cancel-in-progress: true
+
+jobs:
+  # Cheap Linux gate first: shared tests and the iOS type-check. The Mac only starts if this is green.
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: gate-${{ runner.os }}-${{ hashFiles('shared/build.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+      - run: chmod +x gradlew && ./gradlew :shared:desktopTest :shared:compileKotlinIosSimulatorArm64 --console=plain
+
+  ios:
+    needs: gate
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          ls /Applications | grep -i xcode
+          sudo xcode-select -s /Applications/Xcode_26.4.1.app || echo "Xcode 26.4.1 not on this image; using the default"
+          xcodebuild -version
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: ios-${{ runner.os }}-${{ hashFiles('shared/build.gradle.kts', 'gradle/wrapper/gradle-wrapper.properties') }}
+      - run: brew install xcodegen
+      - name: Build, launch and capture
+        run: chmod +x gradlew ci/ios-sim.sh && ci/ios-sim.sh ${{ inputs.screens }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-shots
+          path: build/ios-shots
+          retention-days: 7
