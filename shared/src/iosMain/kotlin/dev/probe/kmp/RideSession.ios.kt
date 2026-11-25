@@ -49,7 +49,6 @@ private class IosRideSession : RideSession {
         UIApplicationState.UIApplicationStateActive -> "active"
         UIApplicationState.UIApplicationStateInactive -> "inactive"
         UIApplicationState.UIApplicationStateBackground -> "background"
-        else -> "unknown"
     }
 
     private fun event(text: String) {
