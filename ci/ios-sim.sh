@@ -7,7 +7,9 @@ set -euo pipefail
 APP_NAME="Probe"
 BUNDLE_ID="dev.probe.kmp"
 SCREEN_ARG="-probeScreen"
-DEFAULT_SCREENS=(light dark)
+DEFAULT_SCREENS=(light dark map)
+# Set RIDE_PROBE=0 to skip the background ride-session check (about 3 minutes).
+RIDE_PROBE="${RIDE_PROBE:-1}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/build/ios-shots"
@@ -94,6 +96,39 @@ for screen in "${SCREENS[@]}"; do
     cat "$OUT/$screen-app-stderr.log" 2>/dev/null || true
   fi
 done
+
+container_file() {
+  local data
+  data="$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null || true)"
+  [ -n "$data" ] && cp "$data/Documents/$1" "$OUT/$1" 2>/dev/null && echo "fetched $1" || echo "missing $1"
+}
+container_file probe-report.json || true
+
+if [ "$RIDE_PROBE" = "1" ]; then
+  echo "::group::ride session probe (background location + audio)"
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+  xcrun simctl privacy "$UDID" grant location "$BUNDLE_ID" || echo "::warning::could not pre-grant location"
+  # Simulated ride along a coastal road, 15 m/s, one fix per second.
+  xcrun simctl location "$UDID" start --speed=15 --interval=1     41.0082,28.9784 41.0250,28.9850 41.0420,29.0050 41.0560,29.0270 41.0780,29.0400 41.1000,29.0560 41.1200,29.0600     || echo "::warning::simctl location start failed"
+  xcrun simctl launch --stdout=/tmp/ride-stdout.log --stderr=/tmp/ride-stderr.log "$UDID" "$BUNDLE_ID" "$SCREEN_ARG" ride
+  sleep 25
+  xcrun simctl io "$UDID" screenshot "$OUT/ride-foreground.png"
+  container_file ride-spike.json && cp "$OUT/ride-spike.json" "$OUT/ride-spike-foreground.json" || true
+  # Send the app to the background by opening Settings, and leave it there.
+  xcrun simctl launch "$UDID" com.apple.Preferences || true
+  sleep 150
+  xcrun simctl io "$UDID" screenshot "$OUT/ride-while-backgrounded.png"
+  container_file ride-spike.json || true
+  # Bring the probe back (it is still running, so this only foregrounds it).
+  xcrun simctl launch "$UDID" "$BUNDLE_ID" "$SCREEN_ARG" ride || true
+  sleep 5
+  xcrun simctl io "$UDID" screenshot "$OUT/ride-after.png"
+  xcrun simctl location "$UDID" clear || true
+  cp "$SIM_TMP/ride-stderr.log" "$OUT/ride-stderr.log" 2>/dev/null || cp /tmp/ride-stderr.log "$OUT/ride-stderr.log" 2>/dev/null || true
+  echo "ride evidence:"; cat "$OUT/ride-spike.json" 2>/dev/null || echo "(none)"
+  echo "::endgroup::"
+fi
+
 xcrun simctl spawn "$UDID" log show --last 5m --predicate "process == \"$APP_NAME\"" --style compact > "$OUT/app.log" 2>/dev/null || true
 cp "$HOME"/Library/Logs/DiagnosticReports/"$APP_NAME"*.ips "$OUT/" 2>/dev/null || true
 exit "$CRASHED"

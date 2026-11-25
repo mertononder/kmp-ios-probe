@@ -53,6 +53,10 @@ private val Inter: FontFamily by lazy {
 /** Screens selectable with `-probeScreen <id>` on iOS: "light" (default) or "dark". */
 @Composable
 fun ProbeApp(screen: String) {
+    when (screen) {
+        "map" -> return MapProbeScreen()
+        "ride" -> return RideProbeScreen()
+    }
     val dark = screen == "dark"
     MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

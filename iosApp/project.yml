@@ -46,6 +46,11 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes:
+          - location
+          - audio
+        NSLocationWhenInUseUsageDescription: "Records the test route while the probe runs."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Records the test route while the probe runs."
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.probe.kmp
@@ -60,6 +65,23 @@ targets:
           - $(inherited)
           - -framework
           - Shared
+          # System libraries MapLibre Native needs (maplibre-compose links no framework of its own).
+          - -lc++
+          - -lz
+          - -framework
+          - CoreFoundation
+          - -framework
+          - CoreGraphics
+          - -framework
+          - CoreText
+          - -framework
+          - Foundation
+          - -framework
+          - ImageIO
+          - -framework
+          - Metal
+          - -framework
+          - QuartzCore
     preBuildScripts:
       # Builds the shared Kotlin framework for exactly the SDK/architecture Xcode is building.
       - name: Build shared Kotlin framework
