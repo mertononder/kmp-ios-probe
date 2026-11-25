@@ -97,7 +97,7 @@ fun offlineStyleJson(pmtilesPath: String): String {
     """.trimIndent()
 }
 
-/** Draws the marker bitmap in common code (what LORE's android.graphics markers will become). */
+/** Draws the marker bitmap in common code (no platform graphics API needed). */
 private fun markerBitmap(): ImageBitmap {
     val px = 72
     val bitmap = ImageBitmap(px, px)
@@ -171,7 +171,7 @@ fun MapProbeScreen() {
     MaterialTheme(colorScheme = lightColorScheme()) {
         Box(Modifier.fillMaxSize()) {
             MaplibreMap(modifier = Modifier.fillMaxSize(), state = state)
-            // Compose overlay above the live map: the glass panel design LORE uses for map chrome.
+            // Compose overlay above the live map: a translucent panel, as map chrome typically uses.
             Column(
                 Modifier.safeDrawingPadding().padding(16.dp).fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))

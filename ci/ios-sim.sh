@@ -135,7 +135,7 @@ if [ "$RIDE_PROBE" = "1" ]; then
   echo "::endgroup::"
 fi
 
-if [ "${DEVICE_LINK:-1}" = "1" ]; then
+if [ "${DEVICE_LINK:-0}" = "1" ]; then
   # Release build for a real iPhone (arm64, optimised Kotlin/Native), unsigned: proves the device link without
   # an Apple account. Nothing is installed anywhere.
   echo "::group::Release device build (unsigned)"

@@ -78,14 +78,26 @@ fun sqliteSmokeTest(dbPath: String): String {
             }
         }
         val rows = conn.prepare("SELECT count(*) FROM ride").use { st -> st.step(); st.getLong(0) }
-        conn.execSQL("CREATE VIRTUAL TABLE ride_fts USING fts5(title)")
-        conn.execSQL("INSERT INTO ride_fts(rowid, title) SELECT id, title FROM ride")
-        val hits = mutableListOf<String>()
-        conn.prepare("SELECT title FROM ride_fts WHERE ride_fts MATCH ? ORDER BY rank").use { st ->
-            st.bindText(1, "zigana")
-            while (st.step()) hits += st.getText(0)
+        val like = conn.prepare("SELECT count(*) FROM ride WHERE title LIKE ?").use { st ->
+            st.bindText(1, "%zigana%")
+            st.step()
+            st.getLong(0)
         }
-        "OK v=$version fts5=$fts5Opt opt0=$threadsafe json=$json rows=$rows match=${hits.size}"
+        // Full-text search is optional: LORE does not use it, and the SQLite copy that wins the iOS link may lack it.
+        val fts = try {
+            conn.execSQL("CREATE VIRTUAL TABLE ride_fts USING fts5(title)")
+            conn.execSQL("INSERT INTO ride_fts(rowid, title) SELECT id, title FROM ride")
+            conn.prepare("SELECT count(*) FROM ride_fts WHERE ride_fts MATCH ?").use { st ->
+                st.bindText(1, "zigana")
+                st.step()
+                "match=" + st.getLong(0)
+            }
+        } catch (t: Throwable) {
+            "unavailable (${t.message})"
+        }
+        val threadsafeMode = conn.prepare("SELECT sqlite_compileoption_used('THREADSAFE=1'), sqlite_compileoption_used('THREADSAFE=2')")
+            .use { st -> st.step(); "ts1=${st.getLong(0)} ts2=${st.getLong(1)}" }
+        "OK v=$version json=$json rows=$rows like=$like $threadsafeMode fts5opt=$fts5Opt fts=$fts first-opt=$threadsafe"
     } catch (t: Throwable) {
         "FAIL ${t::class.simpleName}: ${t.message}"
     } finally {
