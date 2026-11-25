@@ -56,6 +56,7 @@ fun ProbeApp(screen: String) {
     when (screen) {
         "map" -> return MapProbeScreen()
         "ride" -> return RideProbeScreen()
+        "gate" -> return GateAScreen()
     }
     val dark = screen == "dark"
     MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {

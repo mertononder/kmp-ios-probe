@@ -5,6 +5,8 @@ plugins {
 }
 
 val composeVersion = "1.12.1"
+val ktorVersion = "3.6.1"
+val sqliteVersion = "2.7.1"
 
 kotlin {
     jvm("desktop")
@@ -31,6 +33,13 @@ kotlin {
             implementation("org.jetbrains.compose.material3:material3:1.9.0")
             implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation("org.maplibre.compose:maplibre-compose:0.20.0")
+            implementation("androidx.sqlite:sqlite:$sqliteVersion")
+            implementation("androidx.sqlite:sqlite-bundled:$sqliteVersion")
+            implementation("io.ktor:ktor-client-core:$ktorVersion")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+        }
+        iosMain.dependencies {
+            implementation("io.ktor:ktor-client-darwin:$ktorVersion")
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -41,6 +50,7 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 runtimeOnly("org.maplibre.compose:maplibre-compose-runtime-vulkan-windows-x64:0.20.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.11.0")
+                implementation("io.ktor:ktor-client-java:$ktorVersion")
             }
         }
     }

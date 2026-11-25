@@ -19,3 +19,9 @@ actual fun createRideSession(): RideSession = object : RideSession {
     override fun start() {}
     override fun summary(): String = "desktop preview: no location or background audio here"
 }
+
+actual fun scratchFilePath(name: String): String =
+    File(System.getProperty("java.io.tmpdir"), "kmp-ios-probe/$name").also { it.parentFile.mkdirs() }.absolutePath
+
+actual fun writeScratchFile(name: String, text: String): String =
+    File(scratchFilePath(name)).also { it.writeText(text) }.absolutePath

@@ -14,6 +14,10 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: "NO"
     # Only the arm64 simulator slice of the shared framework is built.
     "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
+packages:
+  ValhallaMobile:
+    url: https://github.com/Rallista/valhalla-mobile
+    exactVersion: 0.6.4
 schemes:
   Probe:
     build:
@@ -25,6 +29,10 @@ targets:
   Probe:
     type: application
     platform: iOS
+    dependencies:
+      # Valhalla 3.9.1 routing engine, the same core version as the Android app and its tiles.
+      - package: ValhallaMobile
+        product: Valhalla
     sources:
       - path: iosApp
       # The single asset folder shared with the desktop preview (fonts, later voice clips and data files).
@@ -82,6 +90,9 @@ targets:
           - Metal
           - -framework
           - QuartzCore
+          # Ktor's Darwin engine (TLS) inside the static Kotlin framework.
+          - -framework
+          - Security
     preBuildScripts:
       # Builds the shared Kotlin framework for exactly the SDK/architecture Xcode is building.
       - name: Build shared Kotlin framework

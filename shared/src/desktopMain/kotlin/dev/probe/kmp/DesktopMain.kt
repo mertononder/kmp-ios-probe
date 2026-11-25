@@ -33,6 +33,7 @@ fun main(args: Array<String>) {
                 when (screen) {
                     "map" -> MapProbeScreen()
                     "ride" -> RideProbeScreen()
+                    "gate" -> GateAScreen()
                     else -> ProbeApp(screen)
                 }
             }

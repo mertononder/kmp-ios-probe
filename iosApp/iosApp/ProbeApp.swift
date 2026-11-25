@@ -15,7 +15,7 @@ struct ProbeApp: App {
 
 struct SharedRootView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController()
+        MainViewControllerKt.MainViewController(routing: ValhallaBridge())
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

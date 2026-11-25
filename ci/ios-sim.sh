@@ -7,7 +7,7 @@ set -euo pipefail
 APP_NAME="Probe"
 BUNDLE_ID="dev.probe.kmp"
 SCREEN_ARG="-probeScreen"
-DEFAULT_SCREENS=(light dark map)
+DEFAULT_SCREENS=(light dark map gate)
 # Set RIDE_PROBE=0 to skip the background ride-session check (about 3 minutes).
 RIDE_PROBE="${RIDE_PROBE:-1}"
 
@@ -83,7 +83,8 @@ for screen in "${SCREENS[@]}"; do
     xcrun simctl launch --stdout=/tmp/app-stdout.log --stderr=/tmp/app-stderr.log "$UDID" "$BUNDLE_ID" "$SCREEN_ARG" "$screen"
   }
   launch || { sleep 10; launch; }
-  sleep 15
+  # The native-parts screen does network and engine work before it settles.
+  if [ "$screen" = "gate" ]; then sleep 35; else sleep 15; fi
   xcrun simctl io "$UDID" screenshot "$OUT/$screen.png"
   echo "shot $OUT/$screen.png"
   for f in app-stdout.log app-stderr.log; do
@@ -103,6 +104,11 @@ container_file() {
   [ -n "$data" ] && cp "$data/Documents/$1" "$OUT/$1" 2>/dev/null && echo "fetched $1" || echo "missing $1"
 }
 container_file probe-report.json || true
+DATA_DIR="$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data 2>/dev/null || true)"
+if [ -n "$DATA_DIR" ]; then
+  cp "$DATA_DIR"/Documents/probe-*.txt "$OUT/" 2>/dev/null || true
+  echo "probe results:"; for f in "$OUT"/probe-*.txt; do [ -f "$f" ] && echo "  $(basename "$f" .txt): $(cat "$f")"; done
+fi
 
 if [ "$RIDE_PROBE" = "1" ]; then
   echo "::group::ride session probe (background location + audio)"
@@ -127,6 +133,31 @@ if [ "$RIDE_PROBE" = "1" ]; then
   cp "$SIM_TMP/ride-stderr.log" "$OUT/ride-stderr.log" 2>/dev/null || cp /tmp/ride-stderr.log "$OUT/ride-stderr.log" 2>/dev/null || true
   echo "ride evidence:"; cat "$OUT/ride-spike.json" 2>/dev/null || echo "(none)"
   echo "::endgroup::"
+fi
+
+if [ "${DEVICE_LINK:-1}" = "1" ]; then
+  # Release build for a real iPhone (arm64, optimised Kotlin/Native), unsigned: proves the device link without
+  # an Apple account. Nothing is installed anywhere.
+  echo "::group::Release device build (unsigned)"
+  cd "$ROOT/iosApp"
+  set +e
+  START=$(date +%s)
+  xcodebuild -project "$APP_NAME.xcodeproj" -scheme "$APP_NAME" -configuration Release     -destination "generic/platform=iOS" -derivedDataPath "$DERIVED-device"     CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build > "$OUT/xcodebuild-device.log" 2>&1
+  DEV=$?
+  set -e
+  END=$(date +%s)
+  tail -n 30 "$OUT/xcodebuild-device.log"
+  echo "::endgroup::"
+  echo "device build exit=$DEV in $((END - START)) s" | tee "$OUT/device-build.txt"
+  if [ "$DEV" -ne 0 ]; then
+    grep -nE "error:|What went wrong|Undefined symbols|duplicate symbol|ld: " -A 12 "$OUT/xcodebuild-device.log" | tail -n 200 || true
+    CRASHED=1
+  else
+    DEV_APP="$DERIVED-device/Build/Products/Release-iphoneos/$APP_NAME.app"
+    du -sh "$DEV_APP" | tee -a "$OUT/device-build.txt"
+    ls -la "$DEV_APP/$APP_NAME" | tee -a "$OUT/device-build.txt"
+  fi
+  cd "$ROOT"
 fi
 
 xcrun simctl spawn "$UDID" log show --last 5m --predicate "process == \"$APP_NAME\"" --style compact > "$OUT/app.log" 2>/dev/null || true
